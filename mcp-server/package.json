@@ -1,0 +1,24 @@
+{
+  "name": "milhouse-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Milhouse context management",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@lancedb/lancedb": "^0.23.0",
+    "chokidar": "^3.5.3",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  }
+}

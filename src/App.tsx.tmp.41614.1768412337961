@@ -1,0 +1,114 @@
+import { useState, useEffect } from 'react';
+import FileTree from './components/FileTree';
+import TerminalPanel from './components/Terminal';
+import { useProject } from './hooks/useProject';
+import { useClaude } from './hooks/useClaude';
+
+function App() {
+  const { projectPath, projectName, isLoading: isProjectLoading, selectProject } = useProject();
+  const { isClaudeInstalled, projectSettings, isLoading: isClaudeLoading, initializeProject } = useClaude(projectPath);
+  const isLoading = isProjectLoading || isClaudeLoading;
+  const [autoStartClaude, setAutoStartClaude] = useState(true);
+
+  // Initialize Claude settings when project changes
+  useEffect(() => {
+    if (projectPath && !projectSettings) {
+      initializeProject(projectPath);
+    }
+  }, [projectPath, projectSettings, initializeProject]);
+
+  // Update autoStartClaude from project settings
+  useEffect(() => {
+    if (projectSettings?.auto_start_claude !== undefined) {
+      setAutoStartClaude(projectSettings.auto_start_claude);
+    }
+  }, [projectSettings]);
+  const [selectedFile, setSelectedFile] = useState<string>('');
+  const [fileContent, setFileContent] = useState<string>('');
+  const [editorHeight, setEditorHeight] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleFileSelect = (path: string, content: string) => {
+    setSelectedFile(path);
+    setFileContent(content);
+    if (editorHeight === 0) {
+      setEditorHeight(300);
+    }
+  };
+
+  const handleMouseDown = () => {
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    const newHeight = e.clientY - 50;
+    setEditorHeight(Math.max(0, Math.min(newHeight, window.innerHeight - 150)));
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const closeEditor = () => {
+    setSelectedFile('');
+    setFileContent('');
+    setEditorHeight(0);
+  };
+
+  return (
+    <div
+      className="app"
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
+      <div className="sidebar">
+        <div className="sidebar-header">
+          <div className="project-info" onClick={selectProject} title="Click to change project">
+            <span className="project-name">{projectName || 'Select Project'}</span>
+            <span className="project-change-hint">▾</span>
+          </div>
+        </div>
+        {isLoading ? (
+          <div className="loading-indicator">Loading...</div>
+        ) : (
+          <FileTree
+            onFileSelect={handleFileSelect}
+            projectRoot={projectPath}
+            showHidden={false}
+          />
+        )}
+      </div>
+
+      <div className="main-area">
+        {editorHeight > 0 && selectedFile && (
+          <>
+            <div className="editor-area" style={{ height: editorHeight }}>
+              <div className="file-header">
+                <span className="file-path">{selectedFile}</span>
+                <button className="close-editor-btn" onClick={closeEditor}>×</button>
+              </div>
+              <div className="file-viewer">
+                <pre><code>{fileContent}</code></pre>
+              </div>
+            </div>
+            <div
+              className="resize-handle"
+              onMouseDown={handleMouseDown}
+            />
+          </>
+        )}
+
+        <div className="terminal-area" style={{ flex: 1 }}>
+          <TerminalPanel
+            projectPath={projectPath}
+            autoStartClaude={isClaudeInstalled && autoStartClaude}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;

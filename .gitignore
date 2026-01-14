@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+target/
+src-tauri/target/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# MCP server build
+mcp-server/dist/
+mcp-server/node_modules/
+
+# Tauri
+src-tauri/Cargo.lock
+
+# Test outputs
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp

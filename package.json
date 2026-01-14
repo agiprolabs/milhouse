@@ -1,0 +1,36 @@
+{
+  "name": "milhouse",
+  "version": "0.1.0",
+  "description": "Lightweight IDE for Claude Code",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "mcp:build": "cd mcp-server && npm run build",
+    "mcp:install": "cd mcp-server && npm install",
+    "mcp:configure": "node mcp-server/dist/configure-claude.js add",
+    "mcp:remove": "node mcp-server/dist/configure-claude.js remove"
+  },
+  "dependencies": {
+    "@tauri-apps/plugin-dialog": "^2.5.0",
+    "@tauri-apps/plugin-store": "^2.4.2",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-webgl": "^0.19.0",
+    "@xterm/xterm": "^6.0.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@tauri-apps/api": "^2.9.1",
+    "@tauri-apps/cli": "^2.9.6",
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}
