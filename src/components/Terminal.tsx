@@ -17,18 +17,6 @@ interface TerminalOutput {
   data: string;
 }
 
-// Debounce helper
-function debounce<Args extends unknown[]>(
-  fn: (...args: Args) => void,
-  ms: number
-): (...args: Args) => void {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  return (...args: Args) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), ms);
-  };
-}
-
 // Tab component with rename support
 const TerminalTabItem = memo(function TerminalTabItem({
   tab,
