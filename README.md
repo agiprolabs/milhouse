@@ -1,39 +1,61 @@
 # Milhouse
 
-A desktop IDE for Claude Code - bringing the power of Claude's AI coding assistant to a native application experience.
+**The desktop app that lets Claude Code run free.**
 
-![Milhouse](milhouse.png)
+<p align="center">
+  <img src="milhouse.png" alt="Milhouse" width="200"/>
+</p>
+
+Milhouse is a native desktop IDE wrapper for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that gives you a dedicated workspace for AI-powered coding. Open a project, flip a switch, and let Claude handle the rest.
+
+## Ralph Wiggum Mode
+
+The star feature. Toggle **Ralph Wiggum Mode** and Claude runs with `--dangerously-skip-permissions` - no more approval prompts interrupting your flow. Claude can read files, write code, run commands, and execute your entire task autonomously.
+
+> *"Me fail English? That's unpossible!"* - Ralph Wiggum
+
+Perfect for:
+- Bulk refactoring across your codebase
+- "Fix all the tests" tasks you don't want to babysit
+- Letting Claude explore and implement features end-to-end
+- When you trust Claude and just want it to *do the thing*
+
+**Use responsibly.** Ralph mode gives Claude full access to your project. Great power, great responsibility, etc.
 
 ## Download
 
-### Latest Release (v0.1.0)
+Grab the latest release and start coding:
 
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | [Milhouse_0.1.0_aarch64.dmg](https://github.com/agiprolabs/milhouse/releases/download/v0.1.0/Milhouse_0.1.0_aarch64.dmg) |
-| macOS (Intel) | [Milhouse_0.1.0_x64.dmg](https://github.com/agiprolabs/milhouse/releases/download/v0.1.0/Milhouse_0.1.0_x64.dmg) |
-| Windows (Installer) | [Milhouse_0.1.0_x64-setup.exe](https://github.com/agiprolabs/milhouse/releases/download/v0.1.0/Milhouse_0.1.0_x64-setup.exe) |
-| Windows (MSI) | [Milhouse_0.1.0_x64_en-US.msi](https://github.com/agiprolabs/milhouse/releases/download/v0.1.0/Milhouse_0.1.0_x64_en-US.msi) |
+| **macOS (Apple Silicon)** | [Download .dmg](https://github.com/agiprolabs/milhouse/releases/download/v0.1.0/Milhouse_0.1.0_aarch64.dmg) |
+| **macOS (Intel)** | [Download .dmg](https://github.com/agiprolabs/milhouse/releases/download/v0.1.0/Milhouse_0.1.0_x64.dmg) |
+| **Windows** | [Download .exe](https://github.com/agiprolabs/milhouse/releases/download/v0.1.0/Milhouse_0.1.0_x64-setup.exe) |
 
-[View all releases](https://github.com/agiprolabs/milhouse/releases)
+[All releases](https://github.com/agiprolabs/milhouse/releases)
 
 ## Features
 
-- **Native Terminal Integration**: Full-featured terminal with xterm.js and WebGL rendering
-- **Claude Code Integration**: Seamlessly run Claude Code with project context
-- **Project Management**: Open and manage multiple projects with persistent settings
-- **MCP Server Support**: Built-in Model Context Protocol server for enhanced Claude capabilities
-- **Cross-Platform**: Available for macOS (Apple Silicon & Intel) and Windows
+- **One-Click Claude Code** - Opens your project and launches Claude Code automatically
+- **Ralph Wiggum Mode** - Autonomous operation with no permission prompts
+- **Native Terminal** - Full xterm.js terminal with WebGL acceleration
+- **Project Memory** - Built-in MCP server gives Claude persistent context about your codebase
+- **Multi-Tab Terminals** - Run Claude in one tab, your build in another
+- **Cross-Platform** - macOS (Apple Silicon & Intel) and Windows
 
-## Prerequisites
+## Requirements
 
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) must be installed
-- Node.js 18+ (for development)
-- Rust (for development)
+- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed (`claude` command available)
+- An Anthropic API key configured in Claude Code
+
+## How It Works
+
+1. **Open a project** - Select any folder with code
+2. **Claude launches** - Terminal opens with Claude Code ready to go
+3. **Toggle Ralph mode** - Enable autonomous operation in Settings
+4. **Let Claude cook** - Give it a task and watch it work
 
 ## Development
-
-### Setup
 
 ```bash
 # Install dependencies
@@ -42,24 +64,23 @@ npm install
 # Build MCP server
 cd mcp-server && npm install && npm run build && cd ..
 
-# Run in development mode
+# Run dev mode
 npm run tauri dev
-```
 
-### Build
-
-```bash
 # Build for production
 npm run tauri build
 ```
 
-## Architecture
+## Tech Stack
 
-- **Frontend**: React + TypeScript + Vite
-- **Backend**: Tauri (Rust)
-- **Terminal**: xterm.js with WebGL addon
-- **MCP Server**: Node.js with LanceDB for context storage
+- **App**: Tauri 2.0 (Rust + React + TypeScript)
+- **Terminal**: xterm.js with WebGL renderer
+- **Memory**: LanceDB vector store via MCP server
 
 ## License
 
 MIT
+
+---
+
+*Named after Milhouse Van Houten, Bart Simpson's best friend. The Ralph Wiggum mode is named after... well, you know Ralph.*
