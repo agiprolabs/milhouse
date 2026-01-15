@@ -28,9 +28,9 @@ Grab the latest release and start coding:
 
 | Platform | Download |
 |----------|----------|
-| **macOS (Apple Silicon)** | [Download .dmg](https://github.com/agiprolabs/milhouse/releases/download/v0.1.0/Milhouse_0.1.0_aarch64.dmg) |
-| **macOS (Intel)** | [Download .dmg](https://github.com/agiprolabs/milhouse/releases/download/v0.1.0/Milhouse_0.1.0_x64.dmg) |
-| **Windows** | [Download .exe](https://github.com/agiprolabs/milhouse/releases/download/v0.1.0/Milhouse_0.1.0_x64-setup.exe) |
+| **macOS (Apple Silicon)** | [Download .dmg](https://github.com/agiprolabs/milhouse/releases/download/v0.2.0/Milhouse_0.2.0_aarch64.dmg) |
+| **macOS (Intel)** | [Download .dmg](https://github.com/agiprolabs/milhouse/releases/download/v0.2.0/Milhouse_0.2.0_x64.dmg) |
+| **Windows** | [Download .exe](https://github.com/agiprolabs/milhouse/releases/download/v0.2.0/Milhouse_0.2.0_x64-setup.exe) |
 
 [All releases](https://github.com/agiprolabs/milhouse/releases)
 
@@ -40,6 +40,7 @@ Grab the latest release and start coding:
 - **Ralph Wiggum Mode** - Autonomous operation with no permission prompts
 - **Native Terminal** - Full xterm.js terminal with WebGL acceleration
 - **Project Memory** - Built-in MCP server gives Claude persistent context about your codebase
+- **Tasks & Docs Drawer** - Slide-out panel to view tasks and documentation Claude creates (Cmd/Ctrl+D)
 - **Multi-Tab Terminals** - Run Claude in one tab, your build in another
 - **Cross-Platform** - macOS (Apple Silicon & Intel) and Windows
 
