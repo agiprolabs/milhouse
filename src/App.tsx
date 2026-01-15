@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import FileTree from './components/FileTree';
 import TerminalPanel from './components/Terminal';
+import Drawer, { TaskEntry, DocumentEntry } from './components/Drawer';
 import { useProject } from './hooks/useProject';
 import { useClaude } from './hooks/useClaude';
 import { useMcp } from './hooks/useMcp';
+import { invoke } from '@tauri-apps/api/core';
 
 function App() {
   const { projectPath, projectName, isLoading, selectProject } = useProject();
@@ -76,6 +78,43 @@ function App() {
     setFileContent('');
     setEditorHeight(0);
   };
+
+  // Drawer callbacks for fetching tasks and documents
+  const fetchTasks = useCallback(async (): Promise<TaskEntry[]> => {
+    try {
+      const tasks = await invoke<TaskEntry[]>('list_tasks', {
+        projectPath: projectPath || undefined,
+      });
+      return tasks;
+    } catch (error) {
+      console.error('Failed to fetch tasks:', error);
+      return [];
+    }
+  }, [projectPath]);
+
+  const fetchDocuments = useCallback(async (): Promise<DocumentEntry[]> => {
+    try {
+      const docs = await invoke<DocumentEntry[]>('list_documents', {
+        projectPath: projectPath || undefined,
+      });
+      return docs;
+    } catch (error) {
+      console.error('Failed to fetch documents:', error);
+      return [];
+    }
+  }, [projectPath]);
+
+  const updateTaskStatus = useCallback(async (
+    taskId: string,
+    status: 'pending' | 'in_progress' | 'completed'
+  ): Promise<void> => {
+    try {
+      await invoke('update_task_status', { taskId, status });
+    } catch (error) {
+      console.error('Failed to update task status:', error);
+      throw error;
+    }
+  }, []);
 
   return (
     <div
@@ -255,6 +294,13 @@ function App() {
           />
         </div>
       </div>
+
+      <Drawer
+        projectPath={projectPath}
+        onFetchTasks={fetchTasks}
+        onFetchDocuments={fetchDocuments}
+        onUpdateTaskStatus={updateTaskStatus}
+      />
     </div>
   );
 }

@@ -114,7 +114,11 @@ export default function TerminalPanel({ projectPath, autoStartClaude = false, cl
   const lastClaudeStartCommand = useRef<string>(claudeStartCommand);
   const claudeTerminalId = useRef<string | null>(null);
   const lastResizeTime = useRef<number>(0);
+  const lastOutputTime = useRef<Map<string, number>>(new Map());
+  const terminalCreationTime = useRef<Map<string, number>>(new Map());
+  const pendingResize = useRef<Map<string, { cols: number; rows: number }>>(new Map());
   const resizeCooldown = 500; // Minimum ms between resize operations
+  const quietPeriod = 500; // Wait this long after last output before syncing PTY
 
   // Handle Claude start command changes (e.g., Ralph-Wiggum mode toggle) - restart Claude terminal
   useEffect(() => {
@@ -160,16 +164,42 @@ export default function TerminalPanel({ projectPath, autoStartClaude = false, cl
     }
   }, [projectPath]);
 
-  // Debounced fit function - with cooldown to prevent rapid resizing
-  const debouncedFit = useCallback((id: string) => {
+  // Process any pending resize when output stops
+  const processPendingResize = useCallback((id: string) => {
+    const pending = pendingResize.current.get(id);
+    if (!pending) return;
+
+    const lastOutput = lastOutputTime.current.get(id) || 0;
+    const now = Date.now();
+
+    if (now - lastOutput >= quietPeriod) {
+      // It's been quiet, safe to resize PTY
+      console.log('[Terminal] Processing pending PTY resize after quiet period:', id.slice(0, 8),
+        `${pending.cols}x${pending.rows}`);
+      invoke('resize_terminal', {
+        id,
+        rows: pending.rows,
+        cols: pending.cols,
+      }).then(() => {
+        console.log('[Terminal] PTY resize complete:', pending.cols, 'x', pending.rows);
+      }).catch(console.error);
+      pendingResize.current.delete(id);
+    } else {
+      // Still receiving output, check again later
+      setTimeout(() => processPendingResize(id), quietPeriod);
+    }
+  }, []);
+
+  // Debounced fit function - fits xterm to container and queues PTY resize for quiet period
+  const debouncedFit = useCallback((id: string, immediate: boolean = false) => {
     if (resizeTimeoutRef.current) {
       clearTimeout(resizeTimeoutRef.current);
     }
     resizeTimeoutRef.current = setTimeout(() => {
       const now = Date.now();
-      const timeSinceLastResize = now - lastResizeTime.current;
 
-      // Skip if we recently resized
+      // Check cooldown
+      const timeSinceLastResize = now - lastResizeTime.current;
       if (timeSinceLastResize < resizeCooldown) {
         return;
       }
@@ -180,22 +210,47 @@ export default function TerminalPanel({ projectPath, autoStartClaude = false, cl
           // Only fit if dimensions would actually change
           const dims = terminal.fitAddon.proposeDimensions();
           if (dims && (dims.cols !== terminal.xterm.cols || dims.rows !== terminal.xterm.rows)) {
+            console.log('[Terminal] Fitting xterm:', id.slice(0, 8),
+              `${terminal.xterm.cols}x${terminal.xterm.rows} -> ${dims.cols}x${dims.rows}`);
             terminal.fitAddon.fit();
+            lastResizeTime.current = now;
+
+            if (immediate) {
+              // Immediate PTY sync (used for initial setup)
+              invoke('resize_terminal', {
+                id,
+                rows: terminal.xterm.rows,
+                cols: terminal.xterm.cols,
+              }).then(() => {
+                console.log('[Terminal] PTY resized immediately:', terminal.xterm.cols, 'x', terminal.xterm.rows);
+              }).catch(console.error);
+            } else {
+              // Queue PTY resize for quiet period (avoids SIGWINCH during output)
+              pendingResize.current.set(id, {
+                cols: terminal.xterm.cols,
+                rows: terminal.xterm.rows,
+              });
+              // Start checking for quiet period
+              setTimeout(() => processPendingResize(id), quietPeriod);
+            }
           }
         } catch (e) {
           // Ignore fit errors during transitions
         }
       }
-    }, 200);  // Increased to 200ms
-  }, []);
+    }, 150);
+  }, [processPendingResize]);
 
   // Set up event listeners only once
   useEffect(() => {
-    // Listen for terminal output - write directly without buffering
+    // Listen for terminal output - track timing and write to xterm
     const unlisten = listen<TerminalOutput>('terminal-output', (event) => {
       const { id, data } = event.payload;
       const terminal = terminalRefs.current.get(id);
       if (terminal && data) {
+        // Track last output time for quiet period detection
+        lastOutputTime.current.set(id, Date.now());
+
         terminal.xterm.write(data);
       }
     });
@@ -273,6 +328,9 @@ export default function TerminalPanel({ projectPath, autoStartClaude = false, cl
         claudeTerminalId.current = id;
       }
 
+      // Track creation time for settling period
+      terminalCreationTime.current.set(id, Date.now());
+
       setTabs((prev) => [...prev, { id, title, initialized: false }]);
       setActiveTab(id);
     } catch (err) {
@@ -335,6 +393,8 @@ export default function TerminalPanel({ projectPath, autoStartClaude = false, cl
     // Delay the initial fit to allow terminal to stabilize
     setTimeout(() => {
       fitAddon.fit();
+      console.log('[Terminal] Initial fit complete:', id.slice(0, 8),
+        `xterm=${xterm.cols}x${xterm.rows}`);
     }, 100);
 
     // Handle input
@@ -342,23 +402,19 @@ export default function TerminalPanel({ projectPath, autoStartClaude = false, cl
       invoke('write_terminal', { id, data }).catch(console.error);
     });
 
-    // Track if we've done initial resize
-    let initialResizeDone = false;
-
-    // Only resize once after terminal is stable - disable continuous resize to prevent spacing issues
-    const doInitialResize = () => {
-      if (!initialResizeDone) {
-        initialResizeDone = true;
-        invoke('resize_terminal', {
-          id,
-          rows: xterm.rows,
-          cols: xterm.cols,
-        }).catch(console.error);
-      }
-    };
-
-    // Do initial resize after a delay
-    setTimeout(doInitialResize, 500);
+    // Do initial resize after a delay to sync PTY with xterm
+    setTimeout(() => {
+      console.log('[Terminal] Sending initial PTY resize:', id.slice(0, 8),
+        `cols=${xterm.cols}, rows=${xterm.rows}`);
+      invoke('resize_terminal', {
+        id,
+        rows: xterm.rows,
+        cols: xterm.cols,
+      }).then(() => {
+        console.log('[Terminal] Initial PTY resize complete');
+        lastResizeTime.current = Date.now();
+      }).catch(console.error);
+    }, 500);
 
     terminalRefs.current.set(id, { xterm, fitAddon });
 

@@ -1,4 +1,5 @@
 mod claude;
+mod drawer;
 mod files;
 mod mcp;
 mod terminal;
@@ -7,6 +8,7 @@ use claude::{
     check_claude_installed, check_mcp_registered, get_claude_project_settings, get_mcp_server_path,
     initialize_project_claude, save_claude_project_settings,
 };
+use drawer::{list_documents, list_tasks, update_task_status};
 use files::{get_home_dir, read_directory, read_file};
 use mcp::{get_mcp_status, start_mcp_server, stop_mcp_server, McpState};
 use terminal::{create_terminal, kill_terminal, list_terminals, resize_terminal, write_terminal, TerminalState};
@@ -41,7 +43,10 @@ pub fn run() {
             get_mcp_server_path,
             start_mcp_server,
             stop_mcp_server,
-            get_mcp_status
+            get_mcp_status,
+            list_tasks,
+            list_documents,
+            update_task_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -6,7 +6,7 @@ import { generateEmbedding } from './embeddings.js';
 
 interface ContextEntry {
   id: string;
-  type: 'conversation' | 'code' | 'decision';
+  type: 'conversation' | 'code' | 'decision' | 'task' | 'document';
   title: string;
   content: string;
   projectPath?: string;
@@ -14,6 +14,29 @@ interface ContextEntry {
   tags: string[];
   timestamp: number;
   vector: number[];
+  // Task-specific fields
+  status?: 'pending' | 'in_progress' | 'completed';
+  priority?: 'low' | 'medium' | 'high';
+}
+
+export interface TaskEntry {
+  id: string;
+  title: string;
+  content: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  priority: 'low' | 'medium' | 'high';
+  tags: string[];
+  timestamp: number;
+  projectPath?: string;
+}
+
+export interface DocumentEntry {
+  id: string;
+  title: string;
+  content: string;
+  tags: string[];
+  timestamp: number;
+  projectPath?: string;
 }
 
 interface SearchResult {
@@ -201,6 +224,8 @@ export class ContextStore {
     const conversations = allEntries.filter((e: any) => e.type === 'conversation');
     const decisions = allEntries.filter((e: any) => e.type === 'decision');
     const codeContexts = allEntries.filter((e: any) => e.type === 'code');
+    const tasks = allEntries.filter((e: any) => e.type === 'task');
+    const documents = allEntries.filter((e: any) => e.type === 'document');
 
     // Get unique projects
     const projects = new Set(allEntries.map((e: any) => e.projectPath).filter(Boolean));
@@ -210,8 +235,163 @@ export class ContextStore {
       conversations: conversations.length,
       decisions: decisions.length,
       codeContexts: codeContexts.length,
+      tasks: tasks.length,
+      documents: documents.length,
       indexedProjects: Array.from(projects),
       databasePath: this.dbPath,
     };
+  }
+
+  // Task management methods
+  async createTask(
+    title: string,
+    content: string,
+    priority: 'low' | 'medium' | 'high' = 'medium',
+    tags: string[] = [],
+    projectPath?: string
+  ): Promise<string> {
+    const id = `task-${Date.now()}`;
+    await this.addEntry({
+      id,
+      type: 'task',
+      title,
+      content,
+      status: 'pending',
+      priority,
+      tags,
+      projectPath,
+      timestamp: Date.now(),
+    });
+    return id;
+  }
+
+  async updateTaskStatus(
+    taskId: string,
+    status: 'pending' | 'in_progress' | 'completed'
+  ): Promise<void> {
+    if (!this.table) throw new Error('Store not initialized');
+
+    // LanceDB doesn't have direct update, so we need to get, delete, and re-add
+    const allEntries = await this.table.query().toArray();
+    const task = allEntries.find((e: any) => e.id === taskId && e.type === 'task');
+
+    if (!task) {
+      throw new Error(`Task not found: ${taskId}`);
+    }
+
+    // Update the status and re-add
+    task.status = status;
+    task.timestamp = Date.now();
+
+    // Delete old entry and add updated one
+    await this.table.delete(`id = '${taskId}'`);
+    await this.table.add([task]);
+  }
+
+  async listTasks(
+    projectPath?: string,
+    status?: 'pending' | 'in_progress' | 'completed'
+  ): Promise<TaskEntry[]> {
+    if (!this.table) throw new Error('Store not initialized');
+
+    const allEntries = await this.table.query().toArray();
+    let tasks = allEntries.filter((e: any) => e.type === 'task');
+
+    if (projectPath) {
+      tasks = tasks.filter((t: any) => t.projectPath === projectPath);
+    }
+
+    if (status) {
+      tasks = tasks.filter((t: any) => t.status === status);
+    }
+
+    return tasks
+      .sort((a: any, b: any) => b.timestamp - a.timestamp)
+      .map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        content: t.content,
+        status: t.status || 'pending',
+        priority: t.priority || 'medium',
+        tags: t.tags || [],
+        timestamp: t.timestamp,
+        projectPath: t.projectPath,
+      }));
+  }
+
+  async deleteTask(taskId: string): Promise<void> {
+    if (!this.table) throw new Error('Store not initialized');
+    await this.table.delete(`id = '${taskId}'`);
+  }
+
+  // Document management methods
+  async storeDocument(
+    title: string,
+    content: string,
+    tags: string[] = [],
+    projectPath?: string
+  ): Promise<string> {
+    const id = `doc-${Date.now()}`;
+    await this.addEntry({
+      id,
+      type: 'document',
+      title,
+      content,
+      tags,
+      projectPath,
+      timestamp: Date.now(),
+    });
+    return id;
+  }
+
+  async listDocuments(projectPath?: string, tags?: string[]): Promise<DocumentEntry[]> {
+    if (!this.table) throw new Error('Store not initialized');
+
+    const allEntries = await this.table.query().toArray();
+    let documents = allEntries.filter((e: any) => e.type === 'document');
+
+    if (projectPath) {
+      documents = documents.filter((d: any) => d.projectPath === projectPath);
+    }
+
+    if (tags && tags.length > 0) {
+      documents = documents.filter((d: any) =>
+        tags.some((tag) => d.tags?.includes(tag))
+      );
+    }
+
+    return documents
+      .sort((a: any, b: any) => b.timestamp - a.timestamp)
+      .map((d: any) => ({
+        id: d.id,
+        title: d.title,
+        content: d.content,
+        tags: d.tags || [],
+        timestamp: d.timestamp,
+        projectPath: d.projectPath,
+      }));
+  }
+
+  async getDocument(docId: string): Promise<DocumentEntry | null> {
+    if (!this.table) throw new Error('Store not initialized');
+
+    const allEntries = await this.table.query().toArray();
+    const doc = allEntries.find((e: any) => e.id === docId && e.type === 'document');
+
+    if (!doc) return null;
+
+    return {
+      id: doc.id,
+      title: doc.title,
+      content: doc.content,
+      tags: doc.tags || [],
+      timestamp: doc.timestamp,
+      projectPath: doc.projectPath,
+    };
+  }
+
+  async deleteDocument(docId: string): Promise<void> {
+    if (!this.table) throw new Error('Store not initialized');
+    await this.table.delete(`id = '${docId}'`);
   }
 }

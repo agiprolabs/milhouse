@@ -47,7 +47,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             type: {
               type: 'string',
-              enum: ['all', 'conversation', 'code', 'decision'],
+              enum: ['all', 'conversation', 'code', 'decision', 'task', 'document'],
               description: 'Filter by content type',
             },
           },
@@ -147,6 +147,164 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: 'object',
           properties: {},
+        },
+      },
+      // Task management tools
+      {
+        name: 'list_tasks',
+        description: 'List all tasks, optionally filtered by project path or status.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            projectPath: {
+              type: 'string',
+              description: 'Filter tasks by project path',
+            },
+            status: {
+              type: 'string',
+              enum: ['pending', 'in_progress', 'completed'],
+              description: 'Filter tasks by status',
+            },
+          },
+        },
+      },
+      {
+        name: 'create_task',
+        description: 'Create a new task to track work items.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            title: {
+              type: 'string',
+              description: 'Task title',
+            },
+            content: {
+              type: 'string',
+              description: 'Task description or details',
+            },
+            priority: {
+              type: 'string',
+              enum: ['low', 'medium', 'high'],
+              description: 'Task priority (default: medium)',
+            },
+            tags: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Tags for categorization',
+            },
+            projectPath: {
+              type: 'string',
+              description: 'Associated project path',
+            },
+          },
+          required: ['title', 'content'],
+        },
+      },
+      {
+        name: 'update_task_status',
+        description: 'Update the status of an existing task.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: {
+              type: 'string',
+              description: 'The task ID to update',
+            },
+            status: {
+              type: 'string',
+              enum: ['pending', 'in_progress', 'completed'],
+              description: 'New status for the task',
+            },
+          },
+          required: ['taskId', 'status'],
+        },
+      },
+      {
+        name: 'delete_task',
+        description: 'Delete a task.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: {
+              type: 'string',
+              description: 'The task ID to delete',
+            },
+          },
+          required: ['taskId'],
+        },
+      },
+      // Document management tools
+      {
+        name: 'list_documents',
+        description: 'List all stored documents, optionally filtered by project path or tags.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            projectPath: {
+              type: 'string',
+              description: 'Filter documents by project path',
+            },
+            tags: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Filter documents by tags',
+            },
+          },
+        },
+      },
+      {
+        name: 'store_document',
+        description: 'Store a document for future reference (e.g., generated docs, notes, specs).',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            title: {
+              type: 'string',
+              description: 'Document title',
+            },
+            content: {
+              type: 'string',
+              description: 'Document content',
+            },
+            tags: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Tags for categorization',
+            },
+            projectPath: {
+              type: 'string',
+              description: 'Associated project path',
+            },
+          },
+          required: ['title', 'content'],
+        },
+      },
+      {
+        name: 'get_document',
+        description: 'Get the full content of a specific document by ID.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            docId: {
+              type: 'string',
+              description: 'The document ID to retrieve',
+            },
+          },
+          required: ['docId'],
+        },
+      },
+      {
+        name: 'delete_document',
+        description: 'Delete a document.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            docId: {
+              type: 'string',
+              description: 'The document ID to delete',
+            },
+          },
+          required: ['docId'],
         },
       },
     ],
@@ -268,6 +426,141 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 watchingProject: PROJECT_PATH || 'none',
                 ...stats,
               }, null, 2),
+            },
+          ],
+        };
+      }
+
+      // Task management handlers
+      case 'list_tasks': {
+        const projectPath = args?.projectPath as string | undefined;
+        const status = args?.status as 'pending' | 'in_progress' | 'completed' | undefined;
+
+        const tasks = await store.listTasks(projectPath, status);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(tasks, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'create_task': {
+        const title = args?.title as string;
+        const content = args?.content as string;
+        const priority = (args?.priority as 'low' | 'medium' | 'high') || 'medium';
+        const tags = (args?.tags as string[]) || [];
+        const projectPath = args?.projectPath as string | undefined;
+
+        const taskId = await store.createTask(title, content, priority, tags, projectPath);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Task created successfully with ID: ${taskId}`,
+            },
+          ],
+        };
+      }
+
+      case 'update_task_status': {
+        const taskId = args?.taskId as string;
+        const status = args?.status as 'pending' | 'in_progress' | 'completed';
+
+        await store.updateTaskStatus(taskId, status);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Task ${taskId} status updated to: ${status}`,
+            },
+          ],
+        };
+      }
+
+      case 'delete_task': {
+        const taskId = args?.taskId as string;
+
+        await store.deleteTask(taskId);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Task ${taskId} deleted successfully.`,
+            },
+          ],
+        };
+      }
+
+      // Document management handlers
+      case 'list_documents': {
+        const projectPath = args?.projectPath as string | undefined;
+        const tags = args?.tags as string[] | undefined;
+
+        const documents = await store.listDocuments(projectPath, tags);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(documents, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'store_document': {
+        const title = args?.title as string;
+        const content = args?.content as string;
+        const tags = (args?.tags as string[]) || [];
+        const projectPath = args?.projectPath as string | undefined;
+
+        const docId = await store.storeDocument(title, content, tags, projectPath);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Document stored successfully with ID: ${docId}`,
+            },
+          ],
+        };
+      }
+
+      case 'get_document': {
+        const docId = args?.docId as string;
+
+        const doc = await store.getDocument(docId);
+        if (!doc) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Document not found: ${docId}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(doc, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'delete_document': {
+        const docId = args?.docId as string;
+
+        await store.deleteDocument(docId);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Document ${docId} deleted successfully.`,
             },
           ],
         };

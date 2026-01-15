@@ -207,6 +207,7 @@ pub fn resize_terminal(
     rows: u16,
     cols: u16,
 ) -> Result<(), String> {
+    println!("[DEBUG] resize_terminal called: id={}, cols={}, rows={}", &id[..8], cols, rows);
     let terminals = state.terminals.lock().unwrap();
 
     if let Some(terminal) = terminals.get(&id) {
@@ -220,6 +221,7 @@ pub fn resize_terminal(
                 pixel_height: 0,
             })
             .map_err(|e| format!("Failed to resize terminal: {}", e))?;
+        println!("[DEBUG] resize_terminal success: {}x{}", cols, rows);
         Ok(())
     } else {
         Err(format!("Terminal not found: {}", id))
