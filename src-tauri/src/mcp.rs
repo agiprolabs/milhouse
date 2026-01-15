@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 #[derive(Default)]
 pub struct McpState {
@@ -14,41 +14,74 @@ pub struct McpStatus {
     pub pid: Option<u32>,
 }
 
-/// Get the path to the bundled MCP server
-fn get_bundled_mcp_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
-    // In development, use the mcp-server directory relative to the project
-    // In production, use the bundled resources
+/// Result of finding the MCP server - either a binary or a JS file requiring Node
+enum McpServerPath {
+    /// Standalone binary that can be executed directly
+    Binary(std::path::PathBuf),
+    /// JavaScript file that needs Node.js to run
+    JavaScript(std::path::PathBuf),
+}
 
-    // Try development path first
+/// Get the path to the MCP server (binary or JS)
+fn get_mcp_server_path(_app: &AppHandle) -> Result<McpServerPath, String> {
     let exe_path = std::env::current_exe()
         .map_err(|e| format!("Failed to get executable path: {}", e))?;
 
     // Navigate up from target/debug/milhouse to project root
-    let dev_path = exe_path
+    let project_root = exe_path
         .parent()
         .and_then(|p| p.parent())
         .and_then(|p| p.parent())
-        .and_then(|p| p.parent())
-        .map(|p| p.join("mcp-server").join("dist").join("index.js"));
+        .and_then(|p| p.parent());
 
-    if let Some(path) = dev_path {
-        if path.exists() {
-            return Ok(path);
+    // In development, check for compiled binary first, then fall back to JS
+    if let Some(root) = project_root {
+        let dev_binary = root.join("mcp-server").join("dist").join("mcp-server");
+        if dev_binary.exists() {
+            return Ok(McpServerPath::Binary(dev_binary));
+        }
+
+        let dev_js = root.join("mcp-server").join("dist").join("index.js");
+        if dev_js.exists() {
+            return Ok(McpServerPath::JavaScript(dev_js));
         }
     }
 
-    // Try bundled resources path
-    let resource_path = app
-        .path()
-        .resource_dir()
-        .map_err(|e| format!("Failed to get resource dir: {}", e))?
-        .join("index.js");
+    // Try bundled externalBin path (production)
+    // Tauri places external binaries next to the main executable with target suffix
+    let exe_dir = exe_path.parent()
+        .ok_or_else(|| "Failed to get executable directory".to_string())?;
 
-    if resource_path.exists() {
-        return Ok(resource_path);
+    // Get target triple for the binary name suffix
+    let target_triple = std::env::consts::ARCH.to_string() + "-" +
+        match std::env::consts::OS {
+            "macos" => "apple-darwin",
+            "windows" => "pc-windows-msvc",
+            "linux" => "unknown-linux-gnu",
+            os => os,
+        };
+
+    #[cfg(target_os = "windows")]
+    let binary_name = format!("mcp-server-{}.exe", target_triple);
+    #[cfg(not(target_os = "windows"))]
+    let binary_name = format!("mcp-server-{}", target_triple);
+
+    let binary_path = exe_dir.join(&binary_name);
+    if binary_path.exists() {
+        return Ok(McpServerPath::Binary(binary_path));
     }
 
-    Err("MCP server not found in development or bundled locations".to_string())
+    // Also try without suffix for development builds
+    #[cfg(target_os = "windows")]
+    let simple_binary = exe_dir.join("mcp-server.exe");
+    #[cfg(not(target_os = "windows"))]
+    let simple_binary = exe_dir.join("mcp-server");
+
+    if simple_binary.exists() {
+        return Ok(McpServerPath::Binary(simple_binary));
+    }
+
+    Err(format!("MCP server not found. Looked for: {}", binary_path.display()))
 }
 
 #[tauri::command]
@@ -76,16 +109,28 @@ pub fn start_mcp_server(app: AppHandle, state: tauri::State<McpState>) -> Result
     }
 
     // Get the MCP server path
-    let mcp_path = get_bundled_mcp_path(&app)?;
+    let mcp_server = get_mcp_server_path(&app)?;
 
     // Start the MCP server process
-    let child = Command::new("node")
-        .arg(&mcp_path)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to start MCP server: {}", e))?;
+    let child = match mcp_server {
+        McpServerPath::Binary(path) => {
+            Command::new(&path)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|e| format!("Failed to start MCP server binary: {}", e))?
+        }
+        McpServerPath::JavaScript(path) => {
+            Command::new("node")
+                .arg(&path)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|e| format!("Failed to start MCP server with Node: {}", e))?
+        }
+    };
 
     let pid = child.id();
     *process_guard = Some(child);

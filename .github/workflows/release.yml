@@ -16,10 +16,19 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
+            mcp_binary: 'mcp-server-darwin-arm64'
+            mcp_build_script: 'build:binary:darwin-arm64'
+            tauri_suffix: 'aarch64-apple-darwin'
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
+            mcp_binary: 'mcp-server-darwin-x64'
+            mcp_build_script: 'build:binary:darwin-x64'
+            tauri_suffix: 'x86_64-apple-darwin'
           - platform: 'windows-latest'
             args: ''
+            mcp_binary: 'mcp-server-windows-x64.exe'
+            mcp_build_script: 'build:binary:windows-x64'
+            tauri_suffix: 'x86_64-pc-windows-msvc.exe'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -29,6 +38,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -42,11 +56,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      - name: Build MCP server
+      - name: Build MCP server binary
+        shell: bash
         run: |
           cd mcp-server
-          npm install
-          npm run build
+          bun install
+          bun run ${{ matrix.mcp_build_script }}
+          # Rename with Tauri target suffix for externalBin bundling
+          mv dist/${{ matrix.mcp_binary }} dist/mcp-server-${{ matrix.tauri_suffix }}
 
       - uses: tauri-apps/tauri-action@v0
         env:
