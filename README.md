@@ -28,11 +28,21 @@ Grab the latest release and start coding:
 
 | Platform | Download |
 |----------|----------|
-| **macOS (Apple Silicon)** | [Download .dmg](https://github.com/agiprolabs/milhouse/releases/download/v0.2.0/Milhouse_0.2.0_aarch64.dmg) |
-| **macOS (Intel)** | [Download .dmg](https://github.com/agiprolabs/milhouse/releases/download/v0.2.0/Milhouse_0.2.0_x64.dmg) |
-| **Windows** | [Download .exe](https://github.com/agiprolabs/milhouse/releases/download/v0.2.0/Milhouse_0.2.0_x64-setup.exe) |
+| **macOS (Apple Silicon)** | [Download .dmg](https://github.com/agiprolabs/milhouse/releases/download/v0.2.1/Milhouse_0.2.1_aarch64.dmg) |
+| **macOS (Intel)** | [Download .dmg](https://github.com/agiprolabs/milhouse/releases/download/v0.2.1/Milhouse_0.2.1_x64.dmg) |
+| **Windows** | [Download .exe](https://github.com/agiprolabs/milhouse/releases/download/v0.2.1/Milhouse_0.2.1_x64-setup.exe) |
 
 [All releases](https://github.com/agiprolabs/milhouse/releases)
+
+### macOS: "App is damaged" fix
+
+macOS shows this warning for apps downloaded outside the App Store. To fix it, open Terminal and run:
+
+```bash
+xattr -cr /Applications/Milhouse.app
+```
+
+Then open Milhouse normally. You only need to do this once.
 
 ## Features
 
